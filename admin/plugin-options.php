@@ -19,6 +19,20 @@
                 
             <?php endif; ?>
             
+        <?php elseif($action == 'create_csv') : ?>
+            
+            <?php $productId = isset($_GET['productId']) ? $_GET['productId'] : false; ?>
+            
+            <?php if($productId) : ?>
+            
+                <?php iwcace_create_csv($productId); ?>
+                
+            <?php else : ?>
+            
+                <p>No product ID given.</p>
+                
+            <?php endif; ?>
+                
         <?php else : ?>
         
             <?php iwcace_list_products(); ?>
