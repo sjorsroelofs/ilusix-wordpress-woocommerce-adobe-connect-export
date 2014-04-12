@@ -41,3 +41,35 @@ function iwcace_plugin_options() {
     if ( !current_user_can( 'manage_options' ) ) wp_die( __( 'You do not have sufficient permissions to access this page.' ) );
     require_once( 'admin/plugin-options.php' );
 }
+
+function iwcace_get_woocommerce_status() {
+    if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', get_option( 'active_plugins' ) ) ) ) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+function iwcace_query_products() {
+    global $wpdb;
+    return $wpdb->get_results("SELECT `ID`, `post_title` FROM `" . $wpdb->base_prefix . "posts` WHERE `post_type` = 'product' AND `post_status` = 'publish'");
+}
+
+function iwcace_list_products() {
+    $products = iwcace_query_products();
+    
+    if(count($products)) {
+        echo '<ul>';
+            foreach($products as $product) {
+                echo '<li>' . $product->post_title . '</li>';
+            }
+        echo '</ul>';
+    
+    } else {
+        echo '<p>There are no products</p>';
+    }
+}
+
+function iwcace_list_orders($productId) {
+    echo '<p>Listing orders!</p>';
+}
