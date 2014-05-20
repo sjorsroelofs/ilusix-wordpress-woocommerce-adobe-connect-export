@@ -25,7 +25,12 @@
             
             <?php if($productId) : ?>
             
-                <?php iwcace_create_csv($productId); ?>
+                <?php if($fileUrl = iwcace_create_csv($productId)) : ?>
+                    <br/>
+                    <a class="button button-primary" href="<?php echo $fileUrl; ?>">Download CSV</a>
+                <?php else : ?>
+                    <p>You haven't selected any users.</p>
+                <?php endif; ?>
                 
             <?php else : ?>
             

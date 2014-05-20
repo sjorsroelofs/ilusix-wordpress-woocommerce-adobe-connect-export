@@ -87,7 +87,8 @@ function iwcace_query_orders_for_product($productId) {
         $wcOrderItemsMetaTable  = $wpdb->base_prefix . 'woocommerce_order_itemmeta';
         
         $ordersResult = $wpdb->get_results("
-            SELECT * FROM `" . $postsTable . "`
+            SELECT *
+            FROM `" . $postsTable . "`
             INNER JOIN `" . $wcOrderItemsTable . "`
                 ON `" . $postsTable . "`.`ID` = `" . $wcOrderItemsTable . "`.`order_id`
             INNER JOIN `" . $wcOrderItemsMetaTable . "`
@@ -97,7 +98,7 @@ function iwcace_query_orders_for_product($productId) {
             WHERE `" . $postsTable . "`.`post_type` = 'shop_order'
             AND `" . $wcOrderItemsMetaTable . "`.`meta_key` = '_product_id'
             AND `" . $wcOrderItemsMetaTable . "`.`meta_value` = " . $productId . "
-            ");
+        ");
         
         $orders = array();
         
@@ -125,7 +126,7 @@ function iwcace_list_orders($productId) {
             echo '<form method="post" action="' . admin_url( 'admin.php' ) . '?page=ilusix-wc-adobe-connect-export&action=create_csv&productId=' . $product->ID . '">';
                 echo '<ul>';
                     foreach($orders as $order) {
-                        echo '<li><label><input type="checkbox" name="order_' . $order['ID'] . '" checked="checked" /> ' . $order['meta']['_shipping_first_name'] . ' ' . $order['meta']['_shipping_last_name'] . '</label></li>';
+                        echo '<li><label><input type="checkbox" name="order_' . $order['ID'] . '-product_' . $productId . '" checked="checked" /> ' . $order['meta']['_shipping_first_name'] . ' ' . $order['meta']['_shipping_last_name'] . '</label></li>';
                     }
                 echo '</ul>';
                 
@@ -141,15 +142,93 @@ function iwcace_list_orders($productId) {
     }
 }
 
-function iwcace_create_csv($productId) {
-    if(count($_POST)) {
-        $orders = array();
+function iwcace_query_order($orderId, $productId) {
+    global $wpdb;
     
-        foreach($_POST as $key => $value)
-            if($value == 'on') $orders[] = str_replace('order_', '', $key);
-            
-        print_r($orders);
+    $postsTable             = $wpdb->base_prefix . 'posts';
+    $postMetaTable          = $wpdb->base_prefix . 'postmeta';
+    $wcOrderItemsTable      = $wpdb->base_prefix . 'woocommerce_order_items';
+    $wcOrderItemsMetaTable  = $wpdb->base_prefix . 'woocommerce_order_itemmeta';
+    
+    $orderResult = $wpdb->get_results("
+        SELECT *
+        FROM `" . $postsTable . "`
+        INNER JOIN `" . $wcOrderItemsTable . "`
+            ON `" . $postsTable . "`.`ID` = `" . $wcOrderItemsTable . "`.`order_id`
+        INNER JOIN `" . $wcOrderItemsMetaTable . "`
+            ON `" . $wcOrderItemsTable . "`.`order_item_id` = `" . $wcOrderItemsMetaTable . "`.`order_item_id`
+        INNER JOIN `" . $postMetaTable . "`
+            ON `" . $postsTable . "`.`ID` = `" . $postMetaTable . "`.`post_id`
+
+        WHERE `" . $postsTable . "`.`ID` = " . $orderId . "
+    ");
+    
+    $order = array();
+    foreach($orderResult as $orderRes) {
+        $order['ID'] = $orderRes->ID;
+        $order['post_status'] = $orderRes->post_status;
+        $order['guid'] = $orderRes->guid;
+        $order['meta'][$orderRes->meta_key] = $orderRes->meta_value;
+    }
+    
+    if(count($order)) return $order;
+    return false;
+}
+
+function iwcace_create_csv($productId) {
+    $pluginDir = WP_PLUGIN_DIR . '/ilusix-wc-adobe-connect-export/';
+
+    if(count($_POST)) {
+        $orderIds = array();
+        
+        $count = 0;
+        foreach($_POST as $key => $value) {
+            if($value == 'on') {
+                $explode = explode('-', $key);
+                
+                $orderIds[$count]['orderId'] = str_replace('order_', '', $explode[0]);
+                $orderIds[$count]['productId'] = str_replace('product_', '', $explode[1]);
+                
+                $count++;
+            }
+        }
+        
+        $orders = array();
+        foreach($orderIds as $key => $value) {
+            $orders[$value['orderId']] = iwcace_query_order($value['orderId'], $value['productId']);
+        }
+        
+        
+        if(!file_exists($pluginDir . 'exports')) {
+            mkdir($pluginDir . 'exports', 0777);
+        }
+        
+        
+        $oldExports = glob($pluginDir . 'exports/*');
+        foreach($oldExports as $file) {
+            if(is_file($file)) {
+                unlink($file);
+            }
+        }
+        
+        
+        $exportFileClean = 'exports/export-' . date('d_m_Y') . '-' . uniqid() . '.csv';
+        $exportFile = $pluginDir . $exportFileClean;
+        $exportFileClean = plugin_dir_url(__FILE__) . $exportFileClean;
+        
+        $fileHandle = fopen($exportFile, 'w');
+        fclose($fileHandle);
+
+        $fileContent = file_get_contents($exportFile);
+        $fileContent .= "first-name,last-name,login,email,password\n";
+        
+        foreach($orders as $order) {
+            $fileContent .= $order['meta']['_billing_first_name'] . ',' . $order['meta']['_billing_last_name'] . ',' . $order['meta']['_billing_email'] . ',' . $order['meta']['_billing_email'] . ',' . substr(sha1(uniqid()), 0, 8) . "\n";
+            file_put_contents($exportFile, $fileContent);
+        }
+
+        return $exportFileClean;
     } else {
-        echo '<p>You haven\'t selected any users.</p>';
+        return false;
     }
 }
