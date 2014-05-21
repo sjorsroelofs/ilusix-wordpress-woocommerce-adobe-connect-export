@@ -126,7 +126,7 @@ function iwcace_list_orders($productId) {
             echo '<form method="post" action="' . admin_url( 'admin.php' ) . '?page=ilusix-wc-adobe-connect-export&action=create_csv&productId=' . $product->ID . '">';
                 echo '<ul>';
                     foreach($orders as $order) {
-                        echo '<li><label><input type="checkbox" name="order_' . $order['ID'] . '-product_' . $productId . '" checked="checked" /> ' . $order['meta']['_shipping_first_name'] . ' ' . $order['meta']['_shipping_last_name'] . '</label></li>';
+                        echo '<li><label><input type="checkbox" name="order_' . $order['ID'] . '-product_' . $productId . '" checked="checked" /> ' . $order['meta']['_billing_first_name'] . ' ' . $order['meta']['_billing_last_name'] . '</label></li>';
                     }
                 echo '</ul>';
                 
