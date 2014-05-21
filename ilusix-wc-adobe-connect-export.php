@@ -198,19 +198,17 @@ function iwcace_create_csv($productId) {
             $orders[$value['orderId']] = iwcace_query_order($value['orderId'], $value['productId']);
         }
         
-        
         if(!file_exists($pluginDir . 'exports')) {
             mkdir($pluginDir . 'exports', 0777);
         }
         
-        
-        $oldExports = glob($pluginDir . 'exports/*');
-        foreach($oldExports as $file) {
-            if(is_file($file)) {
-                unlink($file);
+        if($oldExports = glob($pluginDir . 'exports/*')) {
+            foreach($oldExports as $file) {
+                if(is_file($file)) {
+                    unlink($file);
+                }
             }
         }
-        
         
         $exportFileClean = 'exports/export-' . date('d_m_Y') . '-' . uniqid() . '.csv';
         $exportFile = $pluginDir . $exportFileClean;
