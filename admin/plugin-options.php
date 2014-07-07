@@ -19,13 +19,27 @@
                 
             <?php endif; ?>
             
-        <?php elseif($action == 'create_csv') : ?>
+        <?php elseif($action == 'list_columns') : ?>
             
             <?php $productId = isset($_GET['productId']) ? $_GET['productId'] : false; ?>
             
             <?php if($productId) : ?>
+
+                <?php iwcace_list_columns($_POST, $productId); ?>
+                
+            <?php else : ?>
             
-                <?php if($fileUrl = iwcace_create_csv($productId)) : ?>
+                <p>No product ID given.</p>
+                
+            <?php endif; ?>
+            
+        <?php elseif($action == 'create_csv') : ?>
+
+            <?php $productId = isset($_GET['productId']) ? $_GET['productId'] : false; ?>
+            
+            <?php if($productId && isset($_POST['orders-post-result'])) : ?>
+            
+                <?php if($fileUrl = iwcace_create_csv($_POST['orders-post-result'], $productId, $_POST)) : ?>
                     <br/>
                     <a class="button button-primary" href="<?php echo $fileUrl; ?>">Download CSV</a>
                 <?php else : ?>
@@ -34,7 +48,7 @@
                 
             <?php else : ?>
             
-                <p>No product ID given.</p>
+                <p>No product ID given of users selected.</p>
                 
             <?php endif; ?>
                 

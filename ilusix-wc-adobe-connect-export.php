@@ -3,7 +3,7 @@
  * Plugin Name: WooCommerce Adobe Connect CSV export by Ilusix
  * Plugin URI: 
  * Description: Export your WooCommerce orders to a CSV file which you can use to add users in Adobe Connect
- * Version: 1.0.0
+ * Version: 1.1.0
  * Author: Sjors Roelofs
  * Author URI: http://www.ilusix.nl
  * License: MIT
@@ -118,28 +118,43 @@ function iwcace_query_orders_for_product($productId) {
 
 function iwcace_list_orders($productId) {
     if($product = iwcace_get_product_info($productId)) {
-
         echo '<h3>2) Select the users you want to export for product \'' . $product->post_title . '\':</h3>';
         
         if($orders = iwcace_query_orders_for_product($productId)) {
             
-            echo '<form method="post" action="' . admin_url( 'admin.php' ) . '?page=ilusix-wc-adobe-connect-export&action=create_csv&productId=' . $product->ID . '">';
+            echo '<form method="post" action="' . admin_url( 'admin.php' ) . '?page=ilusix-wc-adobe-connect-export&action=list_columns&productId=' . $product->ID . '">';
                 echo '<ul>';
                     foreach($orders as $order) {
                         echo '<li><label><input type="checkbox" name="order_' . $order['ID'] . '-product_' . $productId . '" checked="checked" /> ' . $order['meta']['_billing_first_name'] . ' ' . $order['meta']['_billing_last_name'] . '</label></li>';
                     }
                 echo '</ul>';
                 
-                echo '<br/><input type="submit" class="button button-primary" value="Create CSV" />';
+                echo '<br/><input type="submit" class="button button-primary" value="Next" />';
             echo '</form>';
             
         } else {
             echo '<p>There are no orders for this product.</p>';
         }
-        
     } else {
         echo '<p>Product not found.</p>';
     }
+}
+
+function iwcace_list_columns($ordersPostResult, $productId) {
+    echo '<h3>3) Select the columns you want to export:</h3>';
+
+    echo '<form method="post" action="' . admin_url( 'admin.php' ) . '?page=ilusix-wc-adobe-connect-export&action=create_csv&productId=' . $productId . '">';
+        echo '<input type="hidden" name="orders-post-result" value="' . urlencode(serialize($ordersPostResult)) . '" />';
+        echo '<ul>';
+            echo '<li><label><input type="checkbox" name="column_first-name" checked="checked" /> First name</label></li>';
+            echo '<li><label><input type="checkbox" name="column_last-name" checked="checked" /> Last name</label></li>';
+            echo '<li><label><input type="checkbox" name="column_login" checked="checked" /> Login name</label></li>';
+            echo '<li><label><input type="checkbox" name="column_email" checked="checked" /> Email</label></li>';
+            echo '<li><label><input type="checkbox" name="column_password" checked="checked" /> Password</label></li>';
+        echo '</ul>';
+        
+        echo '<br/><input type="submit" class="button button-primary" value="Create CSV" />';
+    echo '</form>';
 }
 
 function iwcace_query_order($orderId, $productId) {
@@ -175,14 +190,23 @@ function iwcace_query_order($orderId, $productId) {
     return false;
 }
 
-function iwcace_create_csv($productId) {
+function iwcace_create_csv($ordersPostResultSerializedUrldecoded, $productId, $postResult) {
     $pluginDir = WP_PLUGIN_DIR . '/ilusix-wc-adobe-connect-export/';
 
-    if(count($_POST)) {
+    $selectedOrders = unserialize(urldecode($ordersPostResultSerializedUrldecoded));
+    $selectedColumns = array();
+    
+    foreach($postResult as $key => $value) {
+        if(strpos($key, 'column_') === 0) {
+            $selectedColumns[] = $key;
+        }
+    }
+
+    if(count($selectedOrders) && count($selectedColumns)) {
         $orderIds = array();
         
         $count = 0;
-        foreach($_POST as $key => $value) {
+        foreach($selectedOrders as $key => $value) {
             if($value == 'on') {
                 $explode = explode('-', $key);
                 
@@ -218,10 +242,26 @@ function iwcace_create_csv($productId) {
         fclose($fileHandle);
 
         $fileContent = file_get_contents($exportFile);
-        $fileContent .= "first-name,last-name,login,email,password\n";
         
+        if(in_array('column_first-name', $selectedColumns)) $fileContent   .= "first-name,";
+        if(in_array('column_last-name', $selectedColumns)) $fileContent    .= "last-name,";
+        if(in_array('column_login', $selectedColumns)) $fileContent        .= "login,";
+        if(in_array('column_email', $selectedColumns)) $fileContent        .= "email,";
+        if(in_array('column_password', $selectedColumns)) $fileContent     .= "password,";
+        
+        $fileContent = rtrim($fileContent, ",");
+        $fileContent .= "\n";
+       
         foreach($orders as $order) {
-            $fileContent .= $order['meta']['_billing_first_name'] . ',' . $order['meta']['_billing_last_name'] . ',' . $order['meta']['_billing_email'] . ',' . $order['meta']['_billing_email'] . ',' . substr(sha1(uniqid()), 0, 8) . "\n";
+            if(in_array('column_first-name', $selectedColumns)) $fileContent   .= $order['meta']['_billing_first_name'] . ',';
+            if(in_array('column_last-name', $selectedColumns)) $fileContent    .= $order['meta']['_billing_last_name'] . ',';
+            if(in_array('column_login', $selectedColumns)) $fileContent        .= $order['meta']['_billing_email'] . ',';
+            if(in_array('column_email', $selectedColumns)) $fileContent        .= $order['meta']['_billing_email'] . ',';
+            if(in_array('column_password', $selectedColumns)) $fileContent     .= substr(sha1(uniqid()), 0, 8);
+            
+            $fileContent = rtrim($fileContent, ",");
+            $fileContent .= "\n";
+
             file_put_contents($exportFile, $fileContent);
         }
 
